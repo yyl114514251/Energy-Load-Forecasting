@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>IDC 能源负荷预测 · 时序预测 Demo</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='5' fill='%23081423'/%3E%3Cpath d='M7 16V8l4 5V8l4 5V8l2 0v8h-2v-3l-4-5v8H7zm-2 2h14v2H5z' fill='%2339D0C8'/%3E%3C/svg%3E">
+<script>window.__echartsLoaded=false;function loadECharts(src,cb){var s=document.createElement('script');s.src=src;s.onload=function(){if(!window.__echartsLoaded){window.__echartsLoaded=true;}cb&&cb();};s.onerror=function(){if(src.indexOf('jsdelivr')>-1){loadECharts('https://cdnjs.cloudflare.com/ajax/libs/echarts/5.5.0/echarts.min.js',cb);}};document.head.appendChild(s);}loadECharts('https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js');</script>
+<style>
+:root{
+  --bg:#070D18; --panel:#0C1626; --panel2:#0F1C30; --line:#1B2A44; --line2:#2A3D5C;
+  --ink:#E8EEF7; --ink2:#9FB2CC; --ink3:#5E7394;
+  --cyan:#39D0C8; --cyan2:#7FE3DE; --gold:#E4B85A; --red:#E4576B; --green:#4FC38A;
+  --t4:#EE8A4A; --mono:'SF Mono','Cascadia Code',Consolas,monospace;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;line-height:1.5}
+.wrap{max-width:1280px;margin:0 auto;padding:16px 18px 60px}
+a{color:var(--cyan)}
+.top{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:10px 0 14px;border-bottom:1px solid var(--line)}
+.logo{width:40px;height:40px;border-radius:10px;background:linear-gradient(135deg,#123B4A,#0A2133);border:1px solid var(--line2);display:flex;align-items:center;justify-content:center;flex:none}
+.logo svg{width:22px;height:22px}
+.ttl{font-size:19px;font-weight:800;letter-spacing:.02em}
+.ttl small{display:block;font-size:11px;font-weight:400;color:var(--ink3);letter-spacing:.12em}
+.top .badges{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
+.badge{font-size:11px;color:var(--ink2);border:1px solid var(--line2);border-radius:20px;padding:3px 10px;background:var(--panel)}
+.badge b{color:var(--cyan);font-family:var(--mono)}
+h2{font-size:14px;margin:0 0 10px;display:flex;align-items:center;gap:8px}
+h2 .dot{width:8px;height:8px;border-radius:2px;background:var(--cyan);flex:none}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;margin-top:14px}
+.kpis{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-top:14px}
+.kpi{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+.kpi .lb{font-size:11px;color:var(--ink3);margin-bottom:6px}
+.kpi .v{font-size:21px;font-weight:800;font-family:var(--mono);color:var(--cyan)}
+.kpi .v.gold{color:var(--gold)} .kpi .v.red{color:var(--red)} .kpi .v.green{color:var(--green)}
+.kpi .s{font-size:11px;color:var(--ink3);margin-top:3px}
+.grid2{display:grid;grid-template-columns:1.55fr 1fr;gap:14px;margin-top:14px;align-items:start}
+.chart{width:100%;height:430px}
+.chart.sm{height:230px}
+.ctl label{display:block;font-size:11px;color:var(--ink2);margin:10px 0 4px}
+.ctl label:first-child{margin-top:0}
+.ctl input[type=range]{width:100%;accent-color:var(--cyan);cursor:pointer}
+.ctl .rrow{display:flex;justify-content:space-between;font-size:11px;color:var(--ink3);margin-top:2px}
+.ctl select,.ctl input[type=number]{background:#081120;border:1px solid var(--line2);color:var(--ink);border-radius:8px;padding:7px 10px;font-size:13px;width:100%;color-scheme:dark}
+.ctl input[type=number]{font-family:var(--mono)}
+.btns{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}
+.btn{border:none;border-radius:9px;padding:9px 16px;font-size:13px;font-weight:700;cursor:pointer;color:#04121A}
+.btn.cyan{background:var(--cyan)} .btn.ghost{background:transparent;border:1px solid var(--line2);color:var(--ink2)}
+.btn.cyan:hover{background:var(--cyan2)}
+.btn.ghost:hover{border-color:var(--cyan);color:var(--cyan)}
+.sec{font-size:11px;letter-spacing:.15em;color:var(--ink3);margin:18px 0 2px;font-weight:700}
+.hint{font-size:11px;color:var(--ink3);margin-top:8px;line-height:1.6}
+.hint b{color:var(--cyan2);font-weight:600}
+.switch{display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px dashed var(--line);font-size:12px;color:var(--ink2)}
+.switch:last-child{border-bottom:none}
+.switch input{accent-color:var(--cyan);width:34px;height:18px;cursor:pointer}
+.savebox{display:flex;align-items:center;gap:10px;margin-top:12px;padding:10px 12px;border:1px dashed var(--line2);border-radius:10px;background:var(--panel2)}
+.savebox .v{font-family:var(--mono);font-size:17px;font-weight:800;color:var(--gold)}
+.savebox .lb{font-size:11px;color:var(--ink3)}
+.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.step{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:11px 12px}
+.step .n{font-family:var(--mono);font-size:12px;color:var(--cyan);font-weight:800}
+.step .t{font-size:12px;font-weight:700;margin:3px 0 4px}
+.step .d{font-size:11px;color:var(--ink2);line-height:1.55}
+.mono{font-family:var(--mono)}
+#toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(20px);background:#0C1C2C;border:1px solid var(--cyan);color:var(--cyan2);font-size:12px;padding:9px 18px;border-radius:20px;opacity:0;transition:.3s;pointer-events:none;z-index:99;box-shadow:0 8px 30px rgba(0,0,0,.4)}
+#toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+@media(max-width:900px){
+  .kpis{grid-template-columns:repeat(2,1fr)}
+  .grid2{grid-template-columns:1fr}
+  .steps{grid-template-columns:1fr}
+  .chart{height:340px}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="top">
+    <div class="logo"><svg viewBox="0 0 24 24" fill="none"><path d="M7 16V8l4 5V8l4 5V8l2 0v8h-2v-3l-4-5v8H7zm-2 2h14v2H5z" fill="#39D0C8"/></svg></div>
+    <div class="ttl">IDC 能源负荷预测小模型<small>HOLT-WINTERS · 时序预测 · 制冷节能调度</small></div>
+    <div class="badges">
+      <span class="badge">数据 <b id="bDays">30</b> 天</span>
+      <span class="badge">步长 <b id="bStep">30</b> 分钟</span>
+      <span class="badge">模型 <b>Holt-Winters</b></span>
+    </div>
+  </div>
+
+  <div class="kpis">
+    <div class="kpi"><div class="lb">训练集 MAPE</div><div class="v" id="kTrain">—</div><div class="s">训练 80% 样本</div></div>
+    <div class="kpi"><div class="lb">验证集 MAPE</div><div class="v" id="kVal">—</div><div class="s">后 20% 样本回测</div></div>
+    <div class="kpi"><div class="lb">RMSE</div><div class="v" id="kRmse">—</div><div class="s">kW · 验证集</div></div>
+    <div class="kpi"><div class="lb">R² 拟合优度</div><div class="v" id="kR2">—</div><div class="s">1 = 完美预测</div></div>
+    <div class="kpi"><div class="lb">未来 24h 预测峰值</div><div class="v gold" id="kPeak">—</div><div class="s">kW · 含置信区间</div></div>
+    <div class="kpi"><div class="lb">制冷联动 · 24h 可省</div><div class="v green" id="kSave">—</div><div class="s">按分时电价估算</div></div>
+  </div>
+
+  <div class="card">
+    <h2><span class="dot"></span>负荷时序：历史 · 回测 · 未来预测（<span id="chartTitle">未来 24h</span>）</h2>
+    <div class="chart" id="mainChart"></div>
+    <div class="hint">实线为真实功耗（IT 负载 + 温度驱动的制冷负载）；<b>阴影带</b>为 95% 置信区间；虚线右侧为未来预测。峰谷跟随业务时段与室外温度，周末自动回落。</div>
+  </div>
+
+  <div class="grid2">
+    <div class="card">
+      <h2><span class="dot"></span>典型日季节模式 · 模型对比</h2>
+      <div class="chart sm" id="seasonChart"></div>
+      <div class="chart sm" id="cmpChart" style="margin-top:10px"></div>
+      <div class="hint">上：模型学到的 24h 季节因子（相对均值倍率），可定位高峰时段；下：验证集误差对比，Holt-Winters 同时捕捉趋势与周期。</div>
+    </div>
+
+    <div class="card ctl">
+      <h2><span class="dot"></span>参数与控制</h2>
+      <div class="sec">数据生成</div>
+      <div class="hint" style="margin:0 0 4px">拖动下面任一参数，数据会<b>立即按新参数重新生成</b>并重新训练。</div>
+      <label>室外温度影响系数 kT（kW/°C）</label>
+      <input type="range" id="pTemp" min="0" max="15" step="1" value="8">
+      <div class="rrow"><span>0（无制冷耦合）</span><span id="pTv">8 kW/°C</span></div>
+      <label>随机噪声水平（%）</label>
+      <input type="range" id="pNoise" min="0" max="15" step="1" value="6">
+      <div class="rrow"><span>0（理想）</span><span id="pNv">6%</span></div>
+      <label>异常尖峰事件</label>
+      <select id="pSpike"><option value="0">关闭</option><option value="1" selected>1 个随机尖峰</option><option value="2">2 个随机尖峰</option></select>
+
+      <div class="sec">模型训练</div>
+      <label>季节周期长度（小时）</label>
+      <select id="pSeason"><option value="24" selected>24h（日周期）</option><option value="168">168h（周周期）</option></select>
+      <label>预测时长</label>
+      <select id="pHorizon"><option value="24" selected>未来 24h</option><option value="48">未来 48h</option><option value="72">未来 72h</option></select>
+      <div class="switch"><span>参数自动寻优（α/β/γ 网格搜索）</span><input type="checkbox" id="pAuto" checked></div>
+      <label>平滑系数 α（水平）</label>
+      <input type="range" id="pAlpha" min="5" max="90" step="5" value="30" disabled>
+      <div class="rrow"><span id="pAv">0.30</span><span>手动模式</span></div>
+
+      <div class="btns">
+        <button class="btn cyan" id="btnTrain">重新训练 / 预测</button>
+        <button class="btn ghost" id="btnData">重新生成数据</button>
+        <button class="btn ghost" id="btnCsv">导出数据 CSV</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2><span class="dot"></span>节能调度场景：预测驱动的制冷联动</h2>
+    <div class="grid2" style="margin-top:0">
+      <div class="ctl">
+        <label>高峰电价（元/kWh · 8:00–22:00）</label>
+        <input type="number" id="pPeak" value="1.20" min="0" max="5" step="0.05">
+        <label>低谷电价（元/kWh · 22:00–8:00）</label>
+        <input type="number" id="pValley" value="0.40" min="0" max="5" step="0.05">
+        <label>预测削峰阈值（占预测峰值的 %，超过则制冷降载）</label>
+        <input type="range" id="pCap" min="70" max="100" step="1" value="88">
+        <div class="rrow"><span id="pCapv">88%</span><span>削峰越狠省得越多</span></div>
+      </div>
+      <div>
+        <div class="savebox"><div><div class="lb">未来 24h 按预测调度，预估可节省</div><div class="v" id="saveBig">—</div></div></div>
+        <div class="hint" style="margin-top:12px"><b>逻辑：</b>模型预测出未来 24h 负荷曲线 → 对超过阈值的高峰时段提前下调制冷功率（预冷蓄冷转移）→ 用峰谷电价差折算节省。<br><b>对应业务：</b>数据中心 PUE 优化与制冷负荷调优，用预测代替"经验开空调"。</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2><span class="dot"></span>模型原理（三步）</h2>
+    <div class="steps">
+      <div class="step"><div class="n">01</div><div class="t">分解：水平 + 趋势 + 季节</div><div class="d">Holt-Winters 把负荷拆成基准水平、长期趋势（业务增长）与 24h/168h 季节因子，逐点滚动更新。</div></div>
+      <div class="step"><div class="n">02</div><div class="t">训练：网格搜索 α/β/γ</div><div class="d">在验证集上搜索三个平滑系数，最小化 MAPE，让模型自适应数据节奏（自动模式默认开启）。</div></div>
+      <div class="step"><div class="n">03</div><div class="t">预测 + 置信区间</div><div class="d">外推未来 24–72h，用训练残差给出 95% 置信带，供制冷调度与容量规划参考。</div></div>
+    </div>
+    <div class="hint" style="margin-top:12px">本 Demo 为纯前端实现（数据生成 → 模型训练 → 可视化全在浏览器内完成），可作为课程大作业 / 项目演示直接使用；数据可导出 CSV 二次分析。</div>
+  </div>
+
+  <div class="top" style="border:none;padding-top:16px">
+    <span class="badge" style="margin-left:auto">能源负荷预测小模型 · 纯前端时序预测 Demo · 数据本地生成</span>
+  </div>
+</div>
+<div id="toast"></div>
+<script>
+"use strict";
+/* ================= 工具 ================= */
+const $=id=>document.getElementById(id);
+const clamp=(v,a,b)=>Math.min(b,Math.max(a,v));
+const fmt=v=>typeof v==='number'?(Math.round(v*100)/100).toLocaleString('zh-CN'):v;
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+function gauss(rnd){let u=0,v=0;while(u===0)u=rnd();while(v===0)v=rnd();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v)}
+function toast(msg){const t=$('toast');t.textContent=msg;t.classList.add('on');clearTimeout(toast._h);toast._h=setTimeout(()=>t.classList.remove('on'),2400)}
+
+/* ================= 数据生成：30 天机房总功耗（IT + 制冷，30 分钟粒度） ================= */
+const PP=48; /* 每天 48 点 */
+function genData(cfg, seed){
+  const rnd=mulberry32(seed);
+  const days=cfg.days, N=days*PP;
+  const t=[];      /* 时间标签 YYYY-MM-DD HH:mm */
+  const raw=[];    /* 真实负荷 kW */
+  const base=new Date(2026,7,18,0,0); /* 起点 2026-08-18 00:00，30 天至 2026-09-16 */
+  let dayFactor, temp, week, load;
+  for(let i=0;i<N;i++){
+    const dt=new Date(base.getTime()+i*30*60000);
+    const h=dt.getHours()+dt.getMinutes()/60;
+    const dow=dt.getDay(); /* 0 周日 */
+    /* 业务日因子：8 点爬升、12-14 午间小回落、18-22 高峰、夜间低谷 */
+    const dayCurve=0.52+0.40*Math.max(0,Math.sin((h-6)/16*Math.PI))+0.08*Math.max(0,Math.sin((h-13)/4*Math.PI));
+    dayFactor=clamp(dayCurve,0.45,1.02);
+    week=(dow===0||dow===6)?0.74:1.0;
+    /* 室外温度：15 点峰值 33°C，凌晨 26°C，叠加随机漂移 */
+    temp=29.5+4.5*Math.sin((h-9)/24*2*Math.PI)+(rnd()*1.4-0.7);
+    /* 总功耗 = IT 基础负载（业务日周因子）+ 制冷（温度耦合）+ 噪声 */
+    load=340*dayFactor*week+cfg.kT*Math.max(0,temp-24)+rnd()*6;
+    raw.push(load);
+    t.push(String(dt.getFullYear())+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0')+' '+String(dt.getHours()).padStart(2,'0')+':'+String(dt.getMinutes()).padStart(2,'0'));
+  }
+  /* 异常尖峰事件：持续 4 点（2h）功率 ×1.25–1.4 */
+  for(let s=0;s<cfg.spike;s++){
+    const at=Math.floor(rnd()*(N-10))+4;
+    const amp=1.25+rnd()*0.15;
+    for(let k=0;k<4;k++) raw[at+k]=Math.min(900,raw[at+k]*amp);
+  }
+  /* 噪声 */
+  const noiseLevel=cfg.noise/100;
+  const noisy=raw.map(v=>Math.max(60,v*(1+gauss(rnd)*noiseLevel)));
+  return {t, raw:noisy};
+}
+
+/* ================= Holt-Winters 乘法季节 ================= */
+function holtWinters(series, m, alpha, beta, gamma, h){
+  const n=series.length;
+  if(n<m*2) return null;
+  /* 初始化：前两个周期均值 / 斜率 / 季节因子 */
+  let level=0, trend=0; const season=[];
+  for(let j=0;j<m;j++){
+    let s1=0,s2=0;
+    for(let i=j;i<n-m;i+=m) s1+=series[i];
+    for(let i=j+m;i<n;i+=m) s2+=series[i];
+    const c1=s1/Math.ceil((n-m-j-1)/m+1)||0, c2=s2/Math.ceil((n-j-1)/m+1)||0;
+    season[j]=(c1+c2)/2;
+    level+=c1; 
+  }
+  level/=m;
+  for(let j=0;j<m;j++){ season[j]=(season[j]||0)/(level||1); trend+=(season[j]-season[j<1?m-1:j-1]); }
+  trend=trend/m*0.0; /* 季节因子差分不稳定，趋势初始为 0 */
+  /* 滚动更新 */
+  const fitted=[]; const f=[];
+  let prevLevel=level;
+  for(let i=0;i<n;i++){
+    const idx=i%m;
+    const fv=Math.max(1,(level+trend)*season[idx]);
+    fitted.push(fv);
+    const y=series[i];
+    if(i<m){ level=y/season[idx]; }
+    const oldLevel=level;
+    level=alpha*(y/season[idx])+(1-alpha)*(level+trend);
+    trend=beta*(level-oldLevel)+(1-beta)*trend;
+    season[idx]=gamma*(y/level)+(1-gamma)*season[idx];
+    prevLevel=level;
+    f.push(fv);
+  }
+  /* 未来预测 */
+  const pred=[];
+  for(let k=1;k<=h;k++){
+    const idx=(n+k-1)%m;
+    pred.push(Math.max(60,(level+k*trend)*season[idx]));
+  }
+  return {fitted, pred, season, level, trend};
+}
+function trainHolt(series,m,horizon){
+  /* 网格搜索 α β γ，训练 80% / 验证 20%，最小化验证集 MAPE */
+  const n=series.length, cut=Math.floor(n*0.8);
+  const tr=series.slice(0,cut), va=series.slice(cut);
+  let best=null,bestErr=1e18;
+  const grid=[0.1,0.2,0.3,0.4,0.5];
+  for(const a of grid)for(const b of [0,0.05,0.1,0.2])for(const g of grid){
+    const r=holtWinters(tr,m,a,b,g,va.length);
+    if(!r) continue;
+    let se=0,ap=0;
+    for(let i=0;i<va.length;i++){ const e=Math.abs(r.pred[i]-va[i]); se+=e*e; ap+=e/va[i]; }
+    const mape=ap/va.length*100;
+    if(mape<bestErr){bestErr=mape;best={alpha:a,beta:b,gamma:g,valMape:mape,valRmse:Math.sqrt(se/va.length)};}
+  }
+  const full=holtWinters(series,m,best.alpha,best.beta,best.gamma,horizon);
+  const mTr=metrics(tr,holtWinters(tr,m,best.alpha,best.beta,best.gamma,tr.length).fitted);
+  const mVa=metrics(va,holtWinters(tr,m,best.alpha,best.beta,best.gamma,va.length).pred);
+  /* 全量残差 → 置信区间宽度 */
+  let sse=0;
+  for(let i=0;i<n;i++){ const e=series[i]-full.fitted[i]; sse+=e*e; }
+  return {model:full, best, sigma:Math.sqrt(sse/n), mTr, mVa};
+}
+function metrics(actual,pred){
+  let se=0,ape=0,mean=0;
+  for(let i=0;i<actual.length;i++){const e=actual[i]-pred[i];se+=e*e;ape+=Math.abs(e)/actual[i];mean+=actual[i];}
+  const mape=ape/actual.length*100, rmse=Math.sqrt(se/actual.length), m=mean/actual.length;
+  let sst=0; for(const v of actual)sst+=(v-m)*(v-m);
+  const r2=sst>0?1-se/sst:0;
+  return {mape,rmse,r2};
+}
+
+/* ================= 状态与渲染 ================= */
+const state={cfg:{days:30,kT:8,noise:6,spike:1,season:24,horizon:24,auto:true,alpha:0.3,peak:1.2,valley:0.4,cap:88},seed:20260914,series:null,res:null,charts:{}};
+function initCharts(){
+  state.charts.main=echarts.init($('mainChart'));
+  state.charts.season=echarts.init($('seasonChart'));
+  state.charts.cmp=echarts.init($('cmpChart'));
+  window.addEventListener('resize',()=>{Object.values(state.charts).forEach(c=>c&&c.resize())});
+}
+function readCfg(){
+  state.cfg.kT=+$('pTemp').value; state.cfg.noise=+$('pNoise').value; state.cfg.spike=+$('pSpike').value;
+  state.cfg.season=+$('pSeason').value; state.cfg.horizon=+$('pHorizon').value; state.cfg.auto=$('pAuto').checked;
+  state.cfg.alpha=+$('pAlpha').value/100; state.cfg.peak=+$('pPeak').value||1.2; state.cfg.valley=+$('pValley').value||0.4; state.cfg.cap=+$('pCap').value;
+  $('pTv').textContent=state.cfg.kT+' kW/°C'; $('pNv').textContent=state.cfg.noise+'%'; $('pCapv').textContent=state.cfg.cap+'%';
+  $('pAv').textContent=state.cfg.alpha.toFixed(2);
+  $('pAlpha').disabled=state.cfg.auto;
+}
+let rerunRaf=0;
+function scheduleRerun(){ if(rerunRaf) return; rerunRaf=requestAnimationFrame(()=>{ rerunRaf=0; rerun(); }); }
+function rerun(){
+  readCfg();
+  if(!state.series) state.series=genData(state.cfg,state.seed);
+  const ser=state.series.raw, n=ser.length, m=state.cfg.season*2, h=state.cfg.horizon*2;
+  const cut=Math.floor(n*0.8);
+  const va=ser.slice(cut);
+  let params;
+  if(state.cfg.auto){
+    params=trainHolt(ser,m,h);                       /* 网格寻优 α/β/γ，返回 best 与 val 指标 */
+  }else{
+    const full=holtWinters(ser,m,state.cfg.alpha,0.05,0.3,h);
+    const trM=holtWinters(ser.slice(0,cut),m,state.cfg.alpha,0.05,0.3,va.length);
+    const mTr=metrics(ser.slice(0,cut),trM.fitted), mVa=metrics(va,trM.pred);
+    let sse=0; for(let i=0;i<n;i++){const e=ser[i]-full.fitted[i];sse+=e*e;}
+    params={model:full,best:{alpha:state.cfg.alpha,beta:0.05,gamma:0.3},sigma:Math.sqrt(sse/n),mTr,mVa};
+  }
+  state.res={ser,cut,full:params.model,sigma:params.sigma,mTr:params.mTr,mVa:params.mVa,params:params.best};
+  renderKpis();
+  renderMain();
+  renderSeason();
+  renderCmp();
+  renderSave();
+}
+/* 指标数字滚动动画 */
+function animateNum(el,to,fmtFn){
+  const from=parseFloat(el.dataset.v||'0');
+  el.dataset.v=String(to);
+  const f=fmtFn||(v=>fmt(v));
+  if(from===to){ el.textContent=f(to); return; }
+  const t0=performance.now(),dur=520;
+  const tick=t=>{
+    const k=Math.min(1,(t-t0)/dur), e=1-Math.pow(1-k,3);
+    el.textContent=f(from+(to-from)*e);
+    if(k<1) requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+}
+function renderKpis(){
+  const r=state.res;
+  animateNum($('kTrain'),r.mTr?r.mTr.mape:0,v=>v.toFixed(2)+'%');
+  animateNum($('kVal'),r.mVa?r.mVa.mape:0,v=>v.toFixed(2)+'%');
+  animateNum($('kRmse'),r.mVa?r.mVa.rmse:0,v=>v.toFixed(1));
+  animateNum($('kR2'),r.mVa?r.mVa.r2:0,v=>v.toFixed(4));
+  const pred=r.full.pred, idx=pred.indexOf(Math.max(...pred));
+  animateNum($('kPeak'),Math.round(pred[idx]),v=>Math.round(v)+' kW');
+}
+function renderMain(){
+  const r=state.res, t=state.series.t, n=r.ser.length, h=r.full.pred.length;
+  const xh=[...t]; for(let k=1;k<=h;k++){const d=new Date(t[n-1]); d.setMinutes(d.getMinutes()+k*30); xh.push(String(d.getFullYear())+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'));}
+  const tail=()=>new Array(h).fill(null);
+  const head=()=>new Array(n-1).fill(null);
+  const fitted=[...r.full.fitted.slice(0,n), ...tail()];
+  const pred=[...head(), ...r.full.pred, null];
+  const up=[...head(), ...r.full.pred.map(v=>v+1.96*r.sigma), null];
+  const lo=[...head(), ...r.full.pred.map(v=>v-1.96*r.sigma), null];
+  state.charts.main.setOption({
+    backgroundColor:'transparent',
+    tooltip:{trigger:'axis',backgroundColor:'#0C1626',borderColor:'#2A3D5C',textStyle:{color:'#E8EEF7',fontSize:12},valueFormatter:v=>typeof v==='number'?v.toFixed(1)+' kW':v},
+    legend:{data:['真实负荷','模型拟合','预测(95%带)'],top:0,textStyle:{color:'#9FB2CC',fontSize:11}},
+    grid:{left:56,right:16,top:34,bottom:30},
+    xAxis:{type:'category',data:xh,axisLine:{lineStyle:{color:'#2A3D5C'}},axisLabel:{color:'#5E7394',fontSize:10,formatter:v=>v.slice(5,16)},splitLine:{show:false}},
+    yAxis:{type:'value',name:'kW',nameTextStyle:{color:'#5E7394'},axisLabel:{color:'#9FB2CC',fontSize:10},splitLine:{lineStyle:{color:'#14233C'}}},
+    series:[
+      {name:'真实负荷',type:'line',data:[...r.ser,...tail()],symbol:'none',lineStyle:{width:1.4,color:'#E4B85A'}},
+      {name:'模型拟合',type:'line',data:fitted,symbol:'none',lineStyle:{width:1,color:'#39D0C8',opacity:.8}},
+      {name:'预测(95%带)',type:'line',data:pred,symbol:'none',lineStyle:{width:2.2,color:'#E4576B'},areaStyle:{color:'rgba(228,87,107,.16)'}},
+      {name:'置信上界',type:'line',data:up,symbol:'none',lineStyle:{width:0,opacity:0},tooltip:{show:false},silent:true},
+      {name:'置信下界',type:'line',data:lo,symbol:'none',lineStyle:{width:0,opacity:0},tooltip:{show:false},silent:true}
+    ]
+  });
+  $('chartTitle').textContent='未来 '+state.cfg.horizon+'h';
+}
+function renderSeason(){
+  const r=state.res, m=state.cfg.season*2;
+  const s=r.full.season;
+  const hours=Array.from({length:m},(_,i)=>String(Math.floor(i/2)).padStart(2,'0')+':'+(i%2? '30':'00'));
+  state.charts.season.setOption({
+    backgroundColor:'transparent',
+    tooltip:{trigger:'axis',backgroundColor:'#0C1626',borderColor:'#2A3D5C',textStyle:{color:'#E8EEF7',fontSize:11},valueFormatter:v=>typeof v==='number'?v.toFixed(2)+'×':v},
+    grid:{left:44,right:12,top:14,bottom:24},
+    xAxis:{type:'category',data:hours,axisLabel:{color:'#5E7394',fontSize:9,interval:Math.floor(m/12)-1},axisLine:{lineStyle:{color:'#2A3D5C'}}},
+    yAxis:{type:'value',axisLabel:{color:'#9FB2CC',fontSize:10,formatter:v=>v.toFixed(2)+'×'},splitLine:{lineStyle:{color:'#14233C'}}},
+    series:[{type:'line',data:s,symbol:'none',lineStyle:{width:2,color:'#39D0C8'},areaStyle:{color:'rgba(57,208,200,.12)'}}]
+  });
+}
+function renderCmp(){
+  const r=state.res, va=r.ser.slice(r.cut);
+  /* 朴素基准：昨日同时刻 */
+  const m=r.cut<48?24:48;
+  let nErr=0; for(let i=0;i<va.length;i++) nErr+=Math.abs(va[i]-r.ser[r.cut-m+i])/va[i];
+  const naive=nErr/va.length*100;
+  /* 移动平均基准 */
+  const ma=va.map((_,i)=>{const s=r.ser.slice(Math.max(0,r.cut+i-24),r.cut+i);return s.reduce((a,b)=>a+b,0)/s.length});
+  let mErr=0; for(let i=0;i<va.length;i++) mErr+=Math.abs(va[i]-ma[i])/va[i];
+  const mov=mErr/va.length*100;
+  const hwv=r.mVa?r.mVa.mape:0;
+  state.charts.cmp.setOption({
+    backgroundColor:'transparent',
+    tooltip:{trigger:'axis',axisPointer:{type:'shadow'},backgroundColor:'#0C1626',borderColor:'#2A3D5C',textStyle:{color:'#E8EEF7',fontSize:11}},
+    grid:{left:44,right:12,top:14,bottom:24},
+    xAxis:{type:'category',data:['朴素基准\n(昨日同时刻)','移动平均\n(近12h)','Holt-Winters\n(本模型)'],axisLabel:{color:'#9FB2CC',fontSize:10,lineHeight:14},axisLine:{lineStyle:{color:'#2A3D5C'}}},
+    yAxis:{type:'value',name:'MAPE %',nameTextStyle:{color:'#5E7394'},axisLabel:{color:'#9FB2CC',fontSize:10},splitLine:{lineStyle:{color:'#14233C'}}},
+    series:[{type:'bar',data:[{value:+naive.toFixed(2)},{value:+mov.toFixed(2)},{value:+hwv.toFixed(2)}],barWidth:36,itemStyle:{color:p=>p.dataIndex===2?'#39D0C8':'#2A3D5C',borderRadius:[5,5,0,0]},label:{show:true,position:'top',color:'#E8EEF7',fontSize:11,formatter:p=>p.value.toFixed(2)+'%'}}]
+  });
+}
+function renderSave(){
+  const r=state.res, h=r.full.pred.length, cap=state.cfg.cap/100;
+  const peak=Math.max(...r.full.pred);
+  const now=new Date();
+  let base=0,opt=0;
+  for(let k=0;k<h;k++){
+    const hour=(now.getHours()+Math.floor((k*0.5+now.getMinutes()/60)))%24;
+    const price=hour>=8&&hour<22?state.cfg.peak:state.cfg.valley;
+    base+=r.full.pred[k]*0.5*price;
+    opt+=Math.min(r.full.pred[k],peak*cap)*0.5*price;
+  }
+  const save=Math.max(0,base-opt);
+  $('kSave').textContent='¥'+fmt(save);
+  $('saveBig').textContent='约 ¥'+fmt(save)+' / 24h';
+}
+/* ================= 事件 ================= */
+/* 数据参数（温度/噪声/尖峰）改动 → 立即按新参数重新生成数据并重训 */
+['pTemp','pNoise','pSpike'].forEach(id=>$(id).addEventListener('input',()=>{ readCfg(); state.series=genData(state.cfg,state.seed); scheduleRerun(); }));
+/* 模型/电价参数改动 → 仅重新训练预测，不换数据 */
+['pHorizon','pSeason','pAuto','pAlpha','pPeak','pValley','pCap'].forEach(id=>$(id).addEventListener('input',scheduleRerun));
+$('btnTrain').addEventListener('click',()=>{rerun();toast('模型已重新训练并输出预测')});
+$('btnData').addEventListener('click',()=>{state.seed=Math.floor(Math.random()*1e9);state.series=genData(state.cfg,state.seed);rerun();toast('已生成一批新数据并重新训练')});
+$('btnCsv').addEventListener('click',()=>{
+  const s=state.series;const rows=['time,power_kw'];
+  s.t.forEach((tm,i)=>rows.push(tm+','+s.raw[i].toFixed(2)));
+  const blob=new Blob(['\uFEFF'+rows.join('\n')],{type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='energy_load_30d.csv';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),300);
+  toast('已导出 '+s.t.length+' 条负荷数据');
+});
+/* ================= 启动（等待 ECharts 就绪） ================= */
+function boot(){
+  initCharts();
+  state.series=genData(state.cfg,state.seed);
+  rerun();
+}
+if(window.echarts){ boot(); }
+else{
+  let tries=0;
+  const t=setInterval(()=>{ tries++; if(window.echarts){ clearInterval(t); boot(); } else if(tries>80){ clearInterval(t); $('mainChart').innerHTML='<div style="color:#E4576B;padding:40px;text-align:center;font-size:13px">图表库加载失败：请联网后刷新（ECharts 由 CDN 提供）</div>'; } },100);
+}
+</script>
+</body>
+</html>
